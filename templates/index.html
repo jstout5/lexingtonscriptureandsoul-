@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scripture & Soul</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    min-height: 100vh;
+    background: #1a1208;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, #2a1f0a 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, #0f1a08 0%, transparent 60%);
+    font-family: 'EB Garamond', Georgia, serif;
+    color: #d4b896;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    padding: 52px 20px 36px;
+    border-bottom: 1px solid #3a2a14;
+    position: relative;
+  }
+  .header::before, .header::after {
+    content: '✦';
+    position: absolute;
+    top: 50%; transform: translateY(-50%);
+    font-size: 18px; color: #8b6914;
+  }
+  .header::before { left: 40px; }
+  .header::after  { right: 40px; }
+
+  .ornament { font-size: 28px; color: #8b6914; letter-spacing: 8px; margin-bottom: 12px; }
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 700;
+    color: #c9a84c;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 20px rgba(201,168,76,0.3);
+  }
+  .tagline {
+    font-style: italic;
+    font-size: 16px;
+    color: #8a7055;
+    margin-top: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* ── MAIN ── */
+  .container {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── SEARCH CARD ── */
+  .search-card {
+    background: linear-gradient(145deg, #1f1508, #171005);
+    border: 1px solid #3a2a14;
+    border-top: 3px solid #8b6914;
+    border-radius: 4px;
+    padding: 36px 40px;
+    margin-bottom: 48px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(201,168,76,0.1);
+  }
+
+  .search-label {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #8b6914;
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    background: #0f0b04;
+    border: 1px solid #3a2a14;
+    border-radius: 2px;
+    color: #d4b896;
+    font-family: 'EB Garamond', serif;
+    font-size: 18px;
+    line-height: 1.6;
+    padding: 16px 18px;
+    resize: vertical;
+    min-height: 90px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea::placeholder { color: #4a3820; font-style: italic; }
+  textarea:focus { border-color: #8b6914; }
+
+  /* Version toggle */
+  .version-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    margin-bottom: 24px;
+  }
+  .version-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #5a4530;
+  }
+  .version-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 6px 16px;
+    border: 1px solid #3a2a14;
+    border-radius: 2px;
+    background: transparent;
+    color: #5a4530;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .version-btn.active {
+    background: #1f1508;
+    border-color: #8b6914;
+    color: #c9a84c;
+  }
+
+  /* Submit */
+  .seek-btn {
+    width: 100%;
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #0f0b04;
+    background: linear-gradient(135deg, #c9a84c, #a8862e);
+    border: none;
+    border-radius: 2px;
+    padding: 16px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .seek-btn:hover { opacity: 0.9; }
+  .seek-btn:active { transform: scale(0.99); }
+  .seek-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Divider */
+  .divider {
+    text-align: center;
+    color: #3a2a14;
+    font-size: 18px;
+    letter-spacing: 12px;
+    margin: 0 0 36px;
+  }
+
+  /* ── RESULTS ── */
+  #results { display: none; }
+
+  .mood-reflection {
+    text-align: center;
+    font-style: italic;
+    font-size: 19px;
+    color: #a08060;
+    line-height: 1.7;
+    margin-bottom: 36px;
+    padding: 0 20px;
+  }
+
+  .verse-card {
+    background: linear-gradient(145deg, #1a1208, #141008);
+    border: 1px solid #2a1e0e;
+    border-left: 3px solid #8b6914;
+    border-radius: 2px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .verse-card::before {
+    content: '\201C';
+    position: absolute;
+    top: 12px; left: 16px;
+    font-size: 48px;
+    color: #2a1e0e;
+    font-family: Georgia, serif;
+    line-height: 1;
+  }
+
+  .verse-reference {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #8b6914;
+    margin-bottom: 14px;
+  }
+
+  .verse-text {
+    font-size: 20px;
+    line-height: 1.8;
+    color: #e8d5b8;
+    font-style: italic;
+    margin-bottom: 16px;
+    padding-left: 8px;
+  }
+
+  .verse-reflection {
+    font-size: 14px;
+    color: #7a6040;
+    line-height: 1.7;
+    border-top: 1px solid #2a1e0e;
+    padding-top: 14px;
+    margin-top: 4px;
+  }
+
+  /* Loading */
+  .loading {
+    text-align: center;
+    padding: 48px 0;
+    font-style: italic;
+    color: #5a4530;
+    font-size: 17px;
+    display: none;
+  }
+  .loading-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+  }
+  @keyframes dots {
+    0%   { content: ''; }
+    33%  { content: '.'; }
+    66%  { content: '..'; }
+    100% { content: '...'; }
+  }
+
+  .error-msg {
+    text-align: center;
+    color: #8b3a3a;
+    font-style: italic;
+    padding: 24px;
+    border: 1px solid #3a1414;
+    border-radius: 2px;
+    background: #110808;
+  }
+
+  /* ── SERMONS ── */
+  .sermon-card {
+    display:flex; align-items:flex-start; gap:16px;
+    background:#111008; border:1px solid #2a1e0e;
+    border-left:3px solid #3a2a14; border-radius:2px;
+    padding:18px 22px; margin-bottom:10px;
+    text-decoration:none; transition:border-color 0.2s;
+  }
+  .sermon-card:hover { border-left-color:#8b6914; }
+  .sermon-icon { font-size:22px; flex-shrink:0; margin-top:2px; }
+  .sermon-title { font-size:15px; color:#d4b896; margin-bottom:4px; line-height:1.4; }
+  .sermon-meta { font-size:11px; color:#5a4530; letter-spacing:1px; margin-bottom:4px; }
+  .sermon-link-label { font-size:9px; color:#3a2a14; letter-spacing:2px; text-transform:uppercase; margin-top:6px; }
+
+  /* ── BOOKS ── */
+  .books-section { margin-top: 48px; }
+  .books-label {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #5a4530;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .book-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+    background: #111008;
+    border: 1px solid #2a1e0e;
+    border-radius: 2px;
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+  }
+  .book-card:hover { border-color: #8b6914; }
+  .book-icon { font-size: 28px; flex-shrink: 0; margin-top: 2px; }
+  .book-title {
+    font-family: 'Cinzel', serif;
+    font-size: 14px;
+    color: #c9a84c;
+    margin-bottom: 3px;
+  }
+  .book-author { font-size: 12px; color: #5a4530; margin-bottom: 6px; letter-spacing: 1px; }
+  .book-desc { font-size: 14px; color: #7a6040; line-height: 1.6; }
+  .book-link-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #4a3820;
+    margin-top: 8px;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding: 32px 20px;
+    border-top: 1px solid #1e1508;
+    font-size: 11px;
+    color: #3a2a14;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="ornament">☩ ✦ ☩</div>
+  <h1>Scripture &amp; Soul</h1>
+  <div class="tagline">Thy word is a lamp unto my feet, and a light unto my path — Psalm 119:105</div>
+</div>
+
+<div class="container">
+
+  <div class="search-card">
+    <label class="search-label" for="mood-input">What is on your heart?</label>
+    <textarea
+      id="mood-input"
+      placeholder="I am feeling anxious about the future... I am grieving a loss... I need strength to forgive..."
+      rows="3"
+    ></textarea>
+
+    <div class="version-row">
+      <span class="version-label">Version</span>
+      <button class="version-btn active" data-version="KJV" onclick="setVersion('KJV')">KJV</button>
+      <button class="version-btn" data-version="WEB" onclick="setVersion('WEB')">WEB</button>
+    </div>
+
+    <button class="seek-btn" onclick="seekScripture()">
+      Seek the Word
+    </button>
+  </div>
+
+  <div class="divider">✦ ✦ ✦</div>
+
+  <div class="loading" id="loading">
+    <span class="loading-dots">Searching the Scriptures</span>
+  </div>
+
+  <div id="results"></div>
+
+</div>
+
+<div class="footer">
+  Scripture &amp; Soul &nbsp;✦&nbsp; KJV &amp; WEB &nbsp;✦&nbsp; Seek and ye shall find
+</div>
+
+<script>
+  let currentVersion = 'KJV';
+
+  function setVersion(v) {
+    currentVersion = v;
+    document.querySelectorAll('.version-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.version === v);
+    });
+  }
+
+  async function seekScripture() {
+    const mood = document.getElementById('mood-input').value.trim();
+    if (!mood) {
+      document.getElementById('mood-input').focus();
+      return;
+    }
+
+    const btn = document.querySelector('.seek-btn');
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+
+    btn.disabled = true;
+    loading.style.display = 'block';
+    results.style.display = 'none';
+    results.innerHTML = '';
+
+    try {
+      const resp = await fetch('/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mood, version: currentVersion }),
+      });
+      const data = await resp.json();
+
+      if (data.error) {
+        results.innerHTML = `<div class="error-msg">${data.error}</div>`;
+      } else {
+        let html = '';
+        if (data.mood_reflection) {
+          html += `<div class="mood-reflection">${data.mood_reflection}</div>`;
+        }
+        (data.verses || []).forEach(v => {
+          html += `
+            <div class="verse-card">
+              <div class="verse-reference">${v.reference} &nbsp;&#8212;&nbsp; ${currentVersion}</div>
+              <div class="verse-text">${v.text}</div>
+              <div class="verse-reflection">${v.reflection}</div>
+            </div>`;
+        });
+
+        if (data.sermons && data.sermons.length) {
+          html += `<div class="books-section">
+            <div class="books-label">&#9654; &nbsp; Related Sermons &nbsp;&mdash;&nbsp; <span style="font-size:9px;color:#3a2a14;">SermonAudio &middot; Free &middot; Conservative</span></div>`;
+          data.sermons.forEach(s => {
+            html += `
+              <a class="sermon-card" href="${s.url}" target="_blank" rel="noopener">
+                <div class="sermon-icon">&#127908;</div>
+                <div>
+                  <div class="sermon-title">${s.title}</div>
+                  <div class="sermon-meta">${s.speaker}${s.church ? ' &middot; ' + s.church : ''}${s.date ? ' &middot; ' + s.date : ''}</div>
+                  <div class="sermon-link-label">Listen Free on SermonAudio &#8599;</div>
+                </div>
+              </a>`;
+          });
+          html += `</div>`;
+        }
+
+        if (data.books && data.books.length) {
+          html += `<div class="books-section">
+            <div class="books-label">&#9998; &nbsp; Further Reading</div>`;
+          data.books.forEach(b => {
+            const query = encodeURIComponent(b.amazon_search || `${b.title} ${b.author}`);
+            const url = `https://www.amazon.com/s?k=${query}&i=stripbooks`;
+            html += `
+              <a class="book-card" href="${url}" target="_blank" rel="noopener">
+                <div class="book-icon">&#128214;</div>
+                <div>
+                  <div class="book-title">${b.title}</div>
+                  <div class="book-author">${b.author}</div>
+                  <div class="book-desc">${b.description}</div>
+                  <div class="book-link-label">Find on Amazon &#8599;</div>
+                </div>
+              </a>`;
+          });
+          html += `</div>`;
+        }
+
+        results.innerHTML = html;
+      }
+
+      results.style.display = 'block';
+    } catch (e) {
+      results.innerHTML = `<div class="error-msg">Something went wrong. Please try again.</div>`;
+      results.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      loading.style.display = 'none';
+    }
+  }
+
+  document.getElementById('mood-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      seekScripture();
+    }
+  });
+</script>
+
+</body>
+</html>
