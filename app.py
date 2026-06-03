@@ -7,7 +7,7 @@ import os
 import json
 import re
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
@@ -40,53 +40,54 @@ Be spiritually sensitive, theologically grounded, and deeply human in your respo
 Never be preachy — speak as a trusted guide sharing ancient wisdom."""
 
 
-def get_verses(mood: str, version: str) -> dict:
-    prompt = f"""The person is feeling or experiencing: "{mood}"
+STREAM_PROMPT = """The person is feeling or experiencing: "{mood}"
 
 Bible version requested: {version}
 
-Return a JSON object with this structure:
-{{
-  "mood_reflection": "One warm sentence acknowledging what they are going through",
-  "verses": [
-    {{
-      "reference": "Book Chapter:Verse",
-      "text": "The exact verse text in {version}",
-      "reflection": "1-2 sentences on why this verse speaks to this moment"
-    }}
-  ],
-  "books": [
-    {{
-      "title": "Book Title",
-      "author": "Author Name",
-      "description": "One sentence on why this book helps with this topic",
-      "amazon_search": "search terms to find it on Amazon"
-    }}
-  ]
-}}
+Output ONLY newline-delimited JSON — one object per line, no other text, no markdown.
 
-Return 4-5 verses and 3 real, well-known Christian books directly relevant to this mood or topic.
-Books should be widely available, respected Christian titles (e.g. C.S. Lewis, Max Lucado, Timothy Keller, etc.).
-Return only the JSON, no other text."""
+Line 1 — reflection:
+{{"type":"reflection","text":"One warm sentence acknowledging what they are going through"}}
 
-    response = client.messages.create(
+Lines 2-5 — one verse per line:
+{{"type":"verse","reference":"Book Chapter:Verse","text":"Exact verse text in {version}","reflection":"1-2 sentences why this speaks to this moment"}}
+
+Final line — books:
+{{"type":"books","items":[{{"title":"...","author":"...","description":"...","amazon_search":"..."}}]}}
+
+Return 4 verses and 3 books. Output each line immediately as you generate it."""
+
+
+def stream_verses(mood: str, version: str):
+    """Generator that yields SSE events, one per verse/reflection/books."""
+    prompt = STREAM_PROMPT.format(mood=mood, version=version)
+    buffer = ""
+    with client.messages.stream(
         model="claude-haiku-4-5-20251001",
         max_tokens=1400,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw = response.content[0].text.strip()
-    if "```" in raw:
-        for part in raw.split("```"):
-            part = part.strip()
-            if part.startswith("json"):
-                part = part[4:].strip()
-            if part.startswith("{"):
-                raw = part
-                break
-
-    return json.loads(raw)
+    ) as stream:
+        for chunk in stream.text_stream:
+            buffer += chunk
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    yield f"data: {json.dumps(obj)}\n\n"
+                except json.JSONDecodeError:
+                    pass
+    # flush any remaining buffer
+    if buffer.strip():
+        try:
+            obj = json.loads(buffer.strip())
+            yield f"data: {json.dumps(obj)}\n\n"
+        except json.JSONDecodeError:
+            pass
+    yield "data: {\"type\":\"done\"}\n\n"
 
 
 @app.route("/")
@@ -120,23 +121,65 @@ def get_sermons(theme: str) -> list[dict]:
         return []
 
 
-@app.route("/search", methods=["POST"])
-def search():
+@app.route("/stream", methods=["POST"])
+def stream():
     data = request.get_json()
-    mood = data.get("mood", "").strip()
+    mood = (data.get("mood", "") or "").strip()
     version = data.get("version", "KJV")
-
     if not mood:
         return jsonify({"error": "Please describe what you are feeling."}), 400
 
+    # Kick off SermonAudio in background thread
+    from concurrent.futures import ThreadPoolExecutor
+    executor = ThreadPoolExecutor(max_workers=1)
+    sermons_fut = executor.submit(get_sermons, mood)
+
+    @stream_with_context
+    def generate():
+        yield from stream_verses(mood, version)
+        # Append sermons once Claude is done
+        try:
+            sermons = sermons_fut.result(timeout=10)
+            if sermons:
+                yield f"data: {json.dumps({'type':'sermons','items':sermons})}\n\n"
+        except Exception:
+            pass
+        executor.shutdown(wait=False)
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
+
+
+@app.route("/search", methods=["POST"])
+def search():
+    """Fallback non-streaming endpoint."""
+    data = request.get_json()
+    mood = data.get("mood", "").strip()
+    version = data.get("version", "KJV")
+    if not mood:
+        return jsonify({"error": "Please describe what you are feeling."}), 400
     try:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=2) as ex:
-            verses_fut  = ex.submit(get_verses, mood, version)
             sermons_fut = ex.submit(get_sermons, mood)
-        result = verses_fut.result()
-        result["sermons"] = sermons_fut.result()
-        return jsonify(result)
+        # Re-assemble from stream
+        verses, books, reflection = [], [], ""
+        for line in "".join(
+            c for c in stream_verses(mood, version)
+            if not c.startswith("data: {\"type\":\"done\"}")
+        ).split("data: "):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if obj["type"] == "reflection": reflection = obj["text"]
+                elif obj["type"] == "verse":     verses.append(obj)
+                elif obj["type"] == "books":     books = obj.get("items", [])
+            except Exception:
+                pass
+        return jsonify({"mood_reflection": reflection, "verses": verses,
+                        "books": books, "sermons": sermons_fut.result()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

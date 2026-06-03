@@ -579,12 +579,43 @@
     });
   }
 
+  function verseCard(v) {
+    return `<div class="verse-card">
+      <div class="verse-reference">${v.reference} &nbsp;&#8212;&nbsp; ${currentVersion}</div>
+      <div class="verse-text">${v.text}</div>
+      <div class="verse-reflection">${v.reflection}</div>
+    </div>`;
+  }
+
+  function sermonBlock(sermons) {
+    let h = `<div class="books-section"><div class="books-label">&#9654; &nbsp; Related Sermons &nbsp;&mdash;&nbsp; <span style="font-size:9px;color:#aac0d0;">SermonAudio &middot; Free &middot; Conservative</span></div>`;
+    sermons.forEach(s => {
+      h += `<a class="sermon-card" href="${s.url}" target="_blank" rel="noopener">
+        <div class="sermon-icon">&#127908;</div>
+        <div><div class="sermon-title">${s.title}</div>
+        <div class="sermon-meta">${s.speaker}${s.church?' &middot; '+s.church:''}${s.date?' &middot; '+s.date:''}</div>
+        <div class="sermon-link-label">Listen Free on SermonAudio &#8599;</div></div></a>`;
+    });
+    return h + '</div>';
+  }
+
+  function booksBlock(books) {
+    let h = `<div class="books-section"><div class="books-label">&#9998; &nbsp; Further Reading</div>`;
+    books.forEach(b => {
+      const q = encodeURIComponent(b.amazon_search || `${b.title} ${b.author}`);
+      h += `<a class="book-card" href="https://www.amazon.com/s?k=${q}&i=stripbooks" target="_blank" rel="noopener">
+        <div class="book-icon">&#128214;</div>
+        <div><div class="book-title">${b.title}</div>
+        <div class="book-author">${b.author}</div>
+        <div class="book-desc">${b.description}</div>
+        <div class="book-link-label">Find on Amazon &#8599;</div></div></a>`;
+    });
+    return h + '</div>';
+  }
+
   async function seekScripture() {
     const mood = document.getElementById('mood-input').value.trim();
-    if (!mood) {
-      document.getElementById('mood-input').focus();
-      return;
-    }
+    if (!mood) { document.getElementById('mood-input').focus(); return; }
 
     const btn = document.querySelector('.seek-btn');
     const loading = document.getElementById('loading');
@@ -596,71 +627,50 @@
     results.innerHTML = '';
 
     try {
-      const resp = await fetch('/search', {
+      const resp = await fetch('/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mood, version: currentVersion }),
       });
-      const data = await resp.json();
 
-      if (data.error) {
-        results.innerHTML = `<div class="error-msg">${data.error}</div>`;
-      } else {
-        let html = '';
-        if (data.mood_reflection) {
-          html += `<div class="mood-reflection">${data.mood_reflection}</div>`;
+      if (!resp.ok) { throw new Error('Server error'); }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let leftover = '';
+
+      loading.style.display = 'none';
+      results.style.display = 'block';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        leftover += decoder.decode(value, { stream: true });
+        const lines = leftover.split('\n');
+        leftover = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+          try {
+            const obj = JSON.parse(raw);
+            if (obj.type === 'reflection') {
+              results.innerHTML += `<div class="mood-reflection">${obj.text}</div>`;
+            } else if (obj.type === 'verse') {
+              results.innerHTML += verseCard(obj);
+            } else if (obj.type === 'books') {
+              results.innerHTML += booksBlock(obj.items || []);
+            } else if (obj.type === 'sermons') {
+              results.innerHTML += sermonBlock(obj.items || []);
+            }
+          } catch(e) {}
         }
-        (data.verses || []).forEach(v => {
-          html += `
-            <div class="verse-card">
-              <div class="verse-reference">${v.reference} &nbsp;&#8212;&nbsp; ${currentVersion}</div>
-              <div class="verse-text">${v.text}</div>
-              <div class="verse-reflection">${v.reflection}</div>
-            </div>`;
-        });
-
-        if (data.sermons && data.sermons.length) {
-          html += `<div class="books-section">
-            <div class="books-label">&#9654; &nbsp; Related Sermons &nbsp;&mdash;&nbsp; <span style="font-size:9px;color:#aac0d0;">SermonAudio &middot; Free &middot; Conservative</span></div>`;
-          data.sermons.forEach(s => {
-            html += `
-              <a class="sermon-card" href="${s.url}" target="_blank" rel="noopener">
-                <div class="sermon-icon">&#127908;</div>
-                <div>
-                  <div class="sermon-title">${s.title}</div>
-                  <div class="sermon-meta">${s.speaker}${s.church ? ' &middot; ' + s.church : ''}${s.date ? ' &middot; ' + s.date : ''}</div>
-                  <div class="sermon-link-label">Listen Free on SermonAudio &#8599;</div>
-                </div>
-              </a>`;
-          });
-          html += `</div>`;
-        }
-
-        if (data.books && data.books.length) {
-          html += `<div class="books-section">
-            <div class="books-label">&#9998; &nbsp; Further Reading</div>`;
-          data.books.forEach(b => {
-            const query = encodeURIComponent(b.amazon_search || `${b.title} ${b.author}`);
-            const url = `https://www.amazon.com/s?k=${query}&i=stripbooks`;
-            html += `
-              <a class="book-card" href="${url}" target="_blank" rel="noopener">
-                <div class="book-icon">&#128214;</div>
-                <div>
-                  <div class="book-title">${b.title}</div>
-                  <div class="book-author">${b.author}</div>
-                  <div class="book-desc">${b.description}</div>
-                  <div class="book-link-label">Find on Amazon &#8599;</div>
-                </div>
-              </a>`;
-          });
-          html += `</div>`;
-        }
-
-        results.innerHTML = html;
       }
 
-      results.style.display = 'block';
     } catch (e) {
+      loading.style.display = 'none';
       results.innerHTML = `<div class="error-msg">Something went wrong. Please try again.</div>`;
       results.style.display = 'block';
     } finally {
