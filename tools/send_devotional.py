@@ -27,6 +27,23 @@ SUBSCRIBERS_FILE = Path(__file__).parent.parent / "subscribers.json"
 
 
 def get_recipients() -> list:
+    supabase_url = os.getenv("SUPABASE_URL", "").rstrip("/")
+    supabase_key = os.getenv("SUPABASE_KEY", "")
+    if supabase_url and supabase_key:
+        try:
+            import requests as req
+            r = req.get(
+                f"{supabase_url}/rest/v1/subscribers?select=email",
+                headers={"apikey": supabase_key,
+                         "Authorization": f"Bearer {supabase_key}"},
+                timeout=8,
+            )
+            if r.status_code == 200:
+                emails = [row["email"] for row in r.json()]
+                if emails:
+                    return emails
+        except Exception as e:
+            print(f"  Supabase fetch failed: {e} — falling back to local file")
     if SUBSCRIBERS_FILE.exists():
         subs = json.loads(SUBSCRIBERS_FILE.read_text(encoding="utf-8")).get("subscribers", [])
         if subs:

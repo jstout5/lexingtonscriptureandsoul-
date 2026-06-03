@@ -12,11 +12,64 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 
 SUBSCRIBERS_FILE = Path(__file__).parent / "subscribers.json"
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+
+def _sb_headers():
+    return {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json", "Prefer": "return=minimal"}
+
+
+def _sb_available():
+    return bool(SUPABASE_URL and SUPABASE_KEY)
+
 
 def load_subscribers() -> list:
+    if _sb_available():
+        try:
+            import requests as req
+            r = req.get(f"{SUPABASE_URL}/rest/v1/subscribers?select=email",
+                        headers=_sb_headers(), timeout=8)
+            if r.status_code == 200:
+                return [row["email"] for row in r.json()]
+        except Exception:
+            pass
     if SUBSCRIBERS_FILE.exists():
         return json.loads(SUBSCRIBERS_FILE.read_text(encoding="utf-8")).get("subscribers", [])
     return []
+
+
+def sb_add_subscriber(email: str) -> str:
+    """Returns 'subscribed', 'already_subscribed', or raises."""
+    if _sb_available():
+        import requests as req
+        r = req.post(f"{SUPABASE_URL}/rest/v1/subscribers",
+                     headers={**_sb_headers(), "Prefer": "return=minimal"},
+                     json={"email": email}, timeout=8)
+        if r.status_code in (200, 201):
+            return "subscribed"
+        if r.status_code == 409:
+            return "already_subscribed"
+        r.raise_for_status()
+    # fallback to local file
+    subs = load_subscribers()
+    if email in subs:
+        return "already_subscribed"
+    subs.append(email)
+    SUBSCRIBERS_FILE.write_text(json.dumps({"subscribers": subs}, indent=2), encoding="utf-8")
+    return "subscribed"
+
+
+def sb_remove_subscriber(email: str):
+    if _sb_available():
+        import requests as req
+        req.delete(f"{SUPABASE_URL}/rest/v1/subscribers?email=eq.{email}",
+                   headers=_sb_headers(), timeout=8)
+    else:
+        subs = [s for s in load_subscribers() if s != email]
+        SUBSCRIBERS_FILE.write_text(json.dumps({"subscribers": subs}, indent=2), encoding="utf-8")
+
 
 def save_subscribers(subs: list):
     SUBSCRIBERS_FILE.write_text(json.dumps({"subscribers": subs}, indent=2), encoding="utf-8")
@@ -190,22 +243,19 @@ def subscribe():
     email = (data.get("email", "") or "").strip().lower()
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return jsonify({"error": "Please enter a valid email address."}), 400
-    subs = load_subscribers()
-    if email in subs:
-        return jsonify({"status": "already_subscribed"})
-    subs.append(email)
-    save_subscribers(subs)
-    return jsonify({"status": "subscribed"})
+    try:
+        status = sb_add_subscriber(email)
+        return jsonify({"status": status})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/unsubscribe", methods=["GET"])
 def unsubscribe():
     email = (request.args.get("email", "") or "").strip().lower()
     if email:
-        subs = load_subscribers()
-        subs = [s for s in subs if s != email]
-        save_subscribers(subs)
-    return "<html><body style='background:#1a1208;font-family:Georgia,serif;color:#c9a84c;text-align:center;padding:80px;'><h2>✦ You have been unsubscribed.</h2><p style='color:#7a6040;margin-top:16px;'>You will no longer receive daily devotionals.</p></body></html>"
+        sb_remove_subscriber(email)
+    return "<html><body style='background:#ddeef8;font-family:Georgia,serif;color:#2a4a6a;text-align:center;padding:80px;'><h2>You have been unsubscribed.</h2><p style='color:#5a7a9a;margin-top:16px;'>You will no longer receive daily verses.</p></body></html>"
 
 
 if __name__ == "__main__":
