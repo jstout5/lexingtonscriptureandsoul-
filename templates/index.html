@@ -117,7 +117,7 @@
   .tagline {
     font-style: italic;
     font-size: 16px;
-    color: #5a7a9a;
+    color: #2a4a6a;
     margin-top: 10px;
     letter-spacing: 0.5px;
   }
@@ -167,7 +167,7 @@
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   textarea { color: #1a2a3a; }
-  textarea::placeholder { color: #aac0d0; font-style: italic; }
+  textarea::placeholder { color: #4a7a9a; font-style: italic; }
   textarea:focus { border-color: #7AABCC; box-shadow: 0 0 0 3px rgba(122,171,204,0.15); }
 
   /* Version toggle */
@@ -183,23 +183,23 @@
     font-size: 10px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #7a9ab0;
+    color: #2a5a7a;
   }
   .version-btn {
     font-family: 'Cinzel', serif;
-    font-size: 11px;
-    letter-spacing: 2px;
-    padding: 6px 18px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    padding: 5px 12px;
     border: 1px solid rgba(100,160,220,0.35);
     border-radius: 20px;
     background: transparent;
-    color: #7a9ab0;
+    color: #3a5a7a;
     cursor: pointer;
     transition: all 0.2s;
   }
   .version-btn.active {
-    background: #7AABCC;
-    border-color: #7AABCC;
+    background: #3A7A9A;
+    border-color: #3A7A9A;
     color: #ffffff;
   }
 
@@ -397,7 +397,7 @@
     font-size: 11px;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: #5a7a9a;
+    color: #2a4a6a;
     margin-bottom: 20px;
     text-align: center;
   }
@@ -422,14 +422,14 @@
     color: #3a6a8a;
     margin-bottom: 3px;
   }
-  .book-author { font-size: 12px; color: #7a9ab0; margin-bottom: 6px; letter-spacing: 1px; }
+  .book-author { font-size: 12px; color: #2a5a7a; margin-bottom: 6px; letter-spacing: 1px; }
   .book-desc { font-size: 14px; color: #3a5a7a; line-height: 1.6; }
   .book-link-label {
     font-family: 'Cinzel', serif;
     font-size: 9px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #aac0d0;
+    color: #4a7a9a;
     margin-top: 8px;
   }
 
@@ -453,7 +453,7 @@
     text-transform: uppercase; text-align: center; margin-bottom: 6px;
   }
   .feature-sub {
-    font-style: italic; color: #5a7a9a; font-size: 14px;
+    font-style: italic; color: #2a4a6a; font-size: 14px;
     text-align: center; margin-bottom: 20px; line-height: 1.6;
   }
 
@@ -471,12 +471,12 @@
     border-left-color: #7AABCC; box-shadow: 0 3px 14px rgba(60,100,160,0.12);
   }
   .church-name { font-family: 'Cinzel', serif; font-size: 12px; color: #2a4a6a; margin-bottom: 2px; }
-  .church-denom { font-size: 10px; color: #7a9ab0; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .church-denom { font-size: 10px; color: #2a5a7a; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
   .church-addr { font-size: 12px; color: #4a6a8a; margin-bottom: 5px; }
   .church-distance { font-size: 10px; color: #5A9CBB; letter-spacing: 1px; }
-  .church-dir-link { font-size: 10px; color: #aac0d0; letter-spacing: 1px; text-decoration: none; margin-left: 8px; transition: color 0.15s; }
+  .church-dir-link { font-size: 10px; color: #4a7a9a; letter-spacing: 1px; text-decoration: none; margin-left: 8px; transition: color 0.15s; }
   .church-dir-link:hover { color: #5A9CBB; }
-  .church-empty { text-align: center; font-style: italic; color: #aac0d0; font-size: 14px; padding: 28px 10px; }
+  .church-empty { text-align: center; font-style: italic; color: #4a7a9a; font-size: 14px; padding: 28px 10px; }
 
   /* The Daily Scroll plan cards */
   .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -493,7 +493,7 @@
   .plan-check { position: absolute; top: 8px; right: 10px; font-size: 13px; color: #5A9CBB; display: none; }
   .plan-card.selected .plan-check { display: block; }
   .plan-duration { font-family: 'Cinzel', serif; font-size: 19px; color: #2a4a6a; margin-bottom: 4px; }
-  .plan-chapters { font-size: 10px; color: #7a9ab0; letter-spacing: 1px; margin-bottom: 4px; }
+  .plan-chapters { font-size: 10px; color: #2a5a7a; letter-spacing: 1px; margin-bottom: 4px; }
   .plan-timeline { font-style: italic; font-size: 12px; color: #8aaabb; }
 
   /* ── FOOTER ── */
@@ -578,8 +578,12 @@
 
     <div class="version-row">
       <span class="version-label">Version</span>
-      <button class="version-btn active" data-version="KJV" onclick="setVersion('KJV')">KJV</button>
-      <button class="version-btn" data-version="WEB" onclick="setVersion('WEB')">WEB</button>
+      <button class="version-btn active" data-version="KJV"  onclick="setVersion('KJV')">KJV</button>
+      <button class="version-btn" data-version="NIV"  onclick="setVersion('NIV')">NIV</button>
+      <button class="version-btn" data-version="ESV"  onclick="setVersion('ESV')">ESV</button>
+      <button class="version-btn" data-version="NLT"  onclick="setVersion('NLT')">NLT</button>
+      <button class="version-btn" data-version="NKJV" onclick="setVersion('NKJV')">NKJV</button>
+      <button class="version-btn" data-version="WEB"  onclick="setVersion('WEB')">WEB</button>
     </div>
 
     <button class="seek-btn" onclick="seekScripture()">
@@ -770,7 +774,7 @@
 </div>
 
 <div class="footer">
-  Still Waters &nbsp;✿&nbsp; KJV &amp; WEB &nbsp;✿&nbsp; Seek and ye shall find
+  Still Waters &nbsp;✿&nbsp; KJV · NIV · ESV · NLT · NKJV · WEB &nbsp;✿&nbsp; Seek and ye shall find
 </div>
 
 </div><!-- .page-wrap -->
@@ -781,7 +785,7 @@
 
   function setVersion(v) {
     currentVersion = v;
-    document.querySelectorAll('.version-btn').forEach(b => {
+    document.querySelectorAll('[data-version]').forEach(b => {
       b.classList.toggle('active', b.dataset.version === v);
     });
   }
