@@ -116,7 +116,25 @@ def save_reading_plans(plans: list):
 load_dotenv()
 
 app = Flask(__name__)
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 year cache for static files
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+# Gzip all responses >= 1KB
+try:
+    from flask_compress import Compress
+    Compress(app)
+except ImportError:
+    pass
+
+@app.after_request
+def add_cache_headers(response):
+    # Cache static assets for 1 year
+    if request.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    # Never cache SSE or API responses
+    elif request.path.startswith("/stream") or request.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 SYSTEM_PROMPT = """You are a wise and compassionate biblical scholar with deep knowledge of the
 King James Version (KJV), New International Version (NIV), English Standard Version (ESV),
@@ -133,16 +151,22 @@ Be spiritually sensitive, theologically grounded, and deeply human in your respo
 Never be preachy — speak as a trusted guide sharing ancient wisdom."""
 
 
-STREAM_PROMPT = """Feeling/situation: "{mood}" | Version: {version}
+STREAM_PROMPT = """The person is feeling or experiencing: "{mood}"
 
-Output ONLY newline-delimited JSON, one object per line, no markdown.
+Bible version requested: {version}
 
-{{"type":"reflection","text":"One warm sentence acknowledging this"}}
-{{"type":"verse","reference":"Book Ch:V","text":"Exact {version} text","reflection":"1-2 sentences"}}
-(4 verses total)
+Output ONLY newline-delimited JSON — one object per line, no other text, no markdown.
+
+Line 1 — reflection:
+{{"type":"reflection","text":"One warm sentence acknowledging what they are going through"}}
+
+Lines 2-5 — one verse per line:
+{{"type":"verse","reference":"Book Chapter:Verse","text":"Exact verse text in {version}","reflection":"1-2 sentences why this speaks to this moment"}}
+
+Final line — books:
 {{"type":"books","items":[{{"title":"...","author":"...","description":"...","amazon_search":"..."}}]}}
 
-3 books. Stream each line immediately."""
+Return 4 verses and 3 books. Output each line immediately as you generate it."""
 
 
 def stream_verses(mood: str, version: str):
@@ -180,6 +204,14 @@ def stream_verses(mood: str, version: str):
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/sw.js")
+def service_worker():
+    resp = app.send_static_file("sw.js")
+    resp.headers["Cache-Control"] = "no-cache"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
 
 
 def get_sermons(theme: str) -> list[dict]:

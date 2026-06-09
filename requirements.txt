@@ -1,6 +1,8 @@
 flask
+flask-compress
 gunicorn
 anthropic
 python-dotenv
 requests
 beautifulsoup4
+playwright
