@@ -7,7 +7,7 @@ import os
 import json
 import re
 from pathlib import Path
-from flask import Flask, render_template, request, jsonify, Response, stream_with_context
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context, send_file
 from anthropic import Anthropic
 from dotenv import load_dotenv
 
@@ -339,6 +339,149 @@ def cancel_reading_plan():
         "<p style='color:#5a7a9a;margin-top:16px;'>Your place is saved. "
         "You may return and begin again at any time.</p></body></html>"
     )
+
+
+@app.route("/verse-card", methods=["POST"])
+def verse_card():
+    """Render a beautiful shareable verse card as a PNG (1080x1080)."""
+    import io, base64, tempfile
+    data        = request.get_json()
+    verse_text  = (data.get("text")      or "").strip()
+    reference   = (data.get("reference") or "").strip()
+    reflection  = (data.get("reflection") or "").strip()
+    version     = (data.get("version")   or "KJV").strip()
+
+    if not verse_text or not reference:
+        return jsonify({"error": "verse text and reference required"}), 400
+
+    # Build the card HTML
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{
+    width:1080px; height:1080px; overflow:hidden;
+    background: linear-gradient(160deg, #0d2a4a 0%, #0a1f38 35%, #071528 70%, #040e1c 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'EB Garamond', Georgia, serif;
+    position:relative;
+  }}
+  .stars {{
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(1px 1px at 15% 20%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 42% 8%,  rgba(255,255,255,0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 30%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 28% 45%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 55% 35%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 92% 55%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 10% 70%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 78% 72%, rgba(255,255,255,0.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 35% 88%, rgba(255,255,255,0.2) 0%, transparent 100%);
+  }}
+  .glow {{
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%, -50%);
+    width:700px; height:700px; border-radius:50%;
+    background: radial-gradient(ellipse, rgba(122,171,204,0.08) 0%, transparent 70%);
+  }}
+  .card {{
+    position:relative; z-index:2;
+    width:860px;
+    text-align:center;
+    padding:0 40px;
+  }}
+  .ornament {{
+    font-size:22px; color:#7AABCC; letter-spacing:14px;
+    margin-bottom:36px; opacity:0.8;
+  }}
+  .open-quote {{
+    font-size:130px; color:rgba(122,171,204,0.15);
+    font-family:Georgia,serif; line-height:0.6;
+    margin-bottom:16px; display:block;
+  }}
+  .verse {{
+    font-size:clamp(28px,3.2vw,44px);
+    line-height:1.65;
+    color:#e8f4fc;
+    font-style:italic;
+    font-weight:400;
+    letter-spacing:0.3px;
+    margin-bottom:32px;
+    padding:0 20px;
+  }}
+  .reference {{
+    font-family:'Cinzel',serif;
+    font-size:18px; font-weight:600;
+    color:#7AABCC; letter-spacing:4px;
+    text-transform:uppercase;
+    margin-bottom:28px;
+  }}
+  .divider {{
+    width:80px; height:1px;
+    background:linear-gradient(90deg,transparent,rgba(122,171,204,0.5),transparent);
+    margin:0 auto 28px;
+  }}
+  .reflection {{
+    font-size:17px; color:rgba(200,220,240,0.6);
+    line-height:1.7; font-style:italic;
+    max-width:680px; margin:0 auto 40px;
+  }}
+  .brand {{
+    font-family:'Cinzel',serif;
+    font-size:13px; font-weight:600;
+    color:rgba(122,171,204,0.45);
+    letter-spacing:5px; text-transform:uppercase;
+  }}
+  .version-tag {{
+    display:inline-block;
+    background:rgba(122,171,204,0.12);
+    border:1px solid rgba(122,171,204,0.2);
+    border-radius:20px;
+    padding:4px 16px;
+    font-family:'Cinzel',serif;
+    font-size:10px; letter-spacing:3px;
+    color:rgba(122,171,204,0.5);
+    margin-bottom:12px;
+  }}
+</style>
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="glow"></div>
+  <div class="card">
+    <div class="ornament">✾ ❀ ✾</div>
+    <span class="open-quote">"</span>
+    <div class="verse">{verse_text}</div>
+    <div class="reference">— {reference}</div>
+    <div class="divider"></div>
+    {'<div class="reflection">' + reflection + '</div>' if reflection else ''}
+    <div class="version-tag">{version}</div>
+    <div class="brand">Still Waters</div>
+  </div>
+</body>
+</html>"""
+
+    try:
+        from playwright.sync_api import sync_playwright
+        tmp = Path(tempfile.mkdtemp()) / "verse_card.png"
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": 1080, "height": 1080})
+            page.set_content(html, wait_until="networkidle")
+            page.wait_for_timeout(1200)   # let fonts load
+            page.screenshot(path=str(tmp), full_page=False)
+            browser.close()
+        safe_ref = re.sub(r"[^\w\s-]", "", reference).strip().replace(" ", "_")
+        filename = f"StillWaters_{safe_ref}.png"
+        return send_file(str(tmp), mimetype="image/png",
+                         as_attachment=True, download_name=filename)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

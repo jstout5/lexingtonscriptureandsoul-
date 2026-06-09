@@ -285,6 +285,24 @@
     padding-left: 8px;
   }
 
+  .share-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 14px;
+    background: transparent;
+    border: 1px solid rgba(100,160,220,0.3);
+    border-radius: 20px;
+    padding: 7px 18px;
+    font-family: 'Cinzel', serif;
+    font-size: 10px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; color: #5A9CBB;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .share-btn:hover {
+    background: rgba(90,156,187,0.08);
+    border-color: #7AABCC; color: #3a7a9a;
+  }
+  .share-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
   .verse-reflection {
     font-size: 14px;
     color: #4a6a8a;
@@ -769,11 +787,48 @@
   }
 
   function verseCard(v) {
+    const safeText = encodeURIComponent(v.text || '');
+    const safeRef  = encodeURIComponent(v.reference || '');
+    const safeRefl = encodeURIComponent(v.reflection || '');
     return `<div class="verse-card">
       <div class="verse-reference">${v.reference} &nbsp;&#8212;&nbsp; ${currentVersion}</div>
       <div class="verse-text">${v.text}</div>
       <div class="verse-reflection">${v.reflection}</div>
+      <button class="share-btn" onclick="downloadVerseCard('${safeText}','${safeRef}','${safeRefl}',this)">
+        &#8681; Save &amp; Share Card
+      </button>
     </div>`;
+  }
+
+  async function downloadVerseCard(text, ref, refl, btn) {
+    const orig = btn.textContent;
+    btn.textContent = 'Generating…';
+    btn.disabled = true;
+    try {
+      const resp = await fetch('/verse-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text:       decodeURIComponent(text),
+          reference:  decodeURIComponent(ref),
+          reflection: decodeURIComponent(refl),
+          version:    currentVersion,
+        }),
+      });
+      if (!resp.ok) throw new Error('Generation failed');
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `StillWaters_${decodeURIComponent(ref).replace(/\s+/g,'_')}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      btn.textContent = '✓ Saved!';
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+    } catch {
+      btn.textContent = 'Error — try again';
+      btn.disabled = false;
+    }
   }
 
   function sermonBlock(sermons) {
