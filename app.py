@@ -209,6 +209,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/read")
+def read_bible():
+    return render_template("bible.html")
+
+
 @app.route("/sw.js")
 def service_worker():
     resp = app.send_static_file("sw.js")
